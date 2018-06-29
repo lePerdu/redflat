@@ -13,7 +13,7 @@
 -----------------------------------------------------------------------------------------------------------------------
 local error = error
 local table = table
-
+local unpack = unpack or table.unpack
 
 local awful = require("awful")
 local beautiful = require("beautiful")
