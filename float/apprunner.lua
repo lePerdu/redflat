@@ -16,9 +16,10 @@ local unpack = unpack or table.unpack
 local awful = require("awful")
 local beautiful = require("beautiful")
 local wibox = require("wibox")
+local menu_gen = require("menubar.menu_gen")
 
 local svgbox = require("redflat.gauge.svgbox")
-local dfparser = require("redflat.service.dfparser")
+-- local dfparser = require("redflat.service.dfparser")
 local redutil = require("redflat.util")
 local decoration = require("redflat.float.decoration")
 local redtip = require("redflat.float.hotkeys")
@@ -113,16 +114,17 @@ local function construct_item(style)
 	function item:set(args)
 		local args = args or {}
 
-		local name_text = awful.util.escape(args.Name) or ""
+		local name_text = awful.util.escape(args.name) or ""
 		item.name:set_markup(name_text)
 
-		local comment_text = args.Comment and awful.util.escape(args.Comment)
-		                     or args.Name and "No description"
+		local comment_text = args.comment and awful.util.escape(args.comment)
+		                     or args.name and "No description"
 		                     or ""
 		item.comment:set_markup(comment_text)
 
-		item.icon:set_image(args.icon_path or style.dimage)
-		item.icon:set_visible((args.Name))
+		item.filled = args.name
+		item.icon:set_image(args.icon or style.dimage)
+		item.icon:set_visible(item.filled)
 
 		item.cmd = args.cmdline
 	end
@@ -171,8 +173,10 @@ local function construct_list(num, progs, style)
 	------------------------------------------------------------
 	function list:set_select(index)
 		list.items[list.selected]:set_unselect()
-		list.selected = index
-		list.items[list.selected]:set_select()
+        if list.items[index].filled then
+            list.selected = index
+            list.items[list.selected]:set_select()
+        end
 	end
 
 	function list:update(t)
@@ -194,19 +198,20 @@ end
 local function sort_by_query(t, query)
 	local l = string.len(query)
 	local function s(a, b)
-		return string.lower(string.sub(a.Name, 1, l)) == query and string.lower(string.sub(b.Name, 1, l)) ~= query
+		return string.lower(string.sub(a.name, 1, l)) == query and string.lower(string.sub(b.name, 1, l)) ~= query
 	end
 	table.sort(t, s)
 end
 
 -- Function to filter application list by quick search input
 --------------------------------------------------------------------------------
-local function list_filtrate(query)
-	if lastquery ~= query then
-		programs.current = {}
+local function list_filtrate(query, force)
+	if force or lastquery ~= query then
+        programs.current = {}
 
+        query = string.lower(query)
 		for _, p in ipairs(programs.all) do
-			if string.match(string.lower(p.Name), query) then
+			if string.match(string.lower(p.name), query) then
 				table.insert(programs.current, p)
 			end
 		end
@@ -259,9 +264,10 @@ function apprunner:init()
 	self.itemnum = style.itemnum
 	self.keytip = style.keytip
 
-	-- get full application list
-	programs.all = dfparser.program_list(style.parser)
-	programs.current = awful.util.table.clone(programs.all)
+    -- Use empty tables as placeholders since the actual data is found
+    -- asynchronously
+    programs.all = {}
+    programs.current = {}
 
 	-- Create quick search widget
 	--------------------------------------------------------------------------------
@@ -307,17 +313,26 @@ function apprunner:init()
 
 	self.wibox:set_widget(area_layout)
 	self.wibox:geometry(style.geometry)
+
+	menu_gen.generate(function(entries)
+        programs.all = entries
+        if self.widget.visible then
+            list_filtrate(lastquery, true)
+            self.applist:update(programs.current)
+            self.applist:set_select(1)
+        end
+    end)
 end
 
 -- Show apprunner widget
 -- Wibox appears on call and hides after "enter" or "esc" pressed
+-- @param refresh Whether to refresh the menu
 -----------------------------------------------------------------------------------------------------------------------
-function apprunner:show()
-	if not self.wibox then
+function apprunner:show(refresh)
+	if refresh or not self.wibox then
 		self:init()
 	else
 		list_filtrate("")
-		self.applist:set_select(1)
 	end
 
 	redutil.placement.centered(self.wibox, nil, mouse.screen.workarea)

@@ -16,27 +16,41 @@ local ipairs = ipairs
 local string = string
 local awful = require("awful")
 local beautiful = require("beautiful")
+local gears = require("gears")
 
 local redutil = require("redflat.util")
+
+local menu_utils = require("menubar.utils")
+local menu_gen = require("menubar.menu_gen")
 
 -- Initialize tables and vars for module
 -----------------------------------------------------------------------------------------------------------------------
 local dfparser = {}
 local cache = {}
 
-dfparser.terminal = 'uxterm'
+dfparser.terminal = awful.util.terminal or 'uxterm'
 
 local all_icon_folders = { "apps", "actions", "devices", "places", "categories", "status" }
 local all_icon_sizes   = { '128x128' , '96x96', '72x72', '64x64', '48x48',
                            '36x36',    '32x32', '24x24', '22x22', '16x16', 'scalable' }
 
+-- Functions to use XDG directories
+local function get_xdg_menu_dirs()
+	local dirs = gears.filesystem.get_xdg_data_dirs()
+	table.insert(dirs, gears.filesystem.get_xdg_data_home())
+	for i, v in ipairs(dirs) do
+		dirs[i] = v .. "applications/"
+	end
+	return dirs
+end
+
 -- Generate default theme vars
 -----------------------------------------------------------------------------------------------------------------------
 local function default_style()
 	local style = {
-		icons             = { custom_only = false, scalable_only = false, df_icon = nil, theme = nil },
-		desktop_file_dirs = { "/usr/share/applications/" },
-		wm_name           = nil,
+		icons			 = { custom_only = false, scalable_only = false, df_icon = nil, theme = nil },
+		desktop_file_dirs = { get_xdg_menu_dirs() },
+		wm_name		   = nil,
 	}
 
 	return redutil.table.merge(style, redutil.table.check(beautiful, "service.dfparser") or {})
@@ -78,7 +92,10 @@ local function all_icon_path(style)
 	end
 
 	-- add fallback theme
-	if not style.custom_only then table.insert(icon_theme_paths, '/usr/share/icons/hicolor/') end
+	if not style.custom_only then
+		table.insert(icon_theme_paths, '/usr/share/icons/hicolor/')
+		table.insert(icon_theme_paths, '/usr/local/share/icons/hicolor/')
+	end
 
 	-- seach only svg icons if need
 	local all_icon_sizes = style.scalable_only and { 'scalable' } or all_icon_sizes
@@ -97,7 +114,7 @@ local function all_icon_path(style)
 	-- lowest priority fallbacks
 	if not style.custom_only then
 		table.insert(icon_path, '/usr/share/pixmaps/')
-		table.insert(icon_path, '/usr/share/icons/')
+		table.insert(icon_path, '/usr/local/share/pixmaps/')
 	end
 
 	return icon_path
