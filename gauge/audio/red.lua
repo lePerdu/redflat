@@ -32,7 +32,7 @@ end
 -- Support functions
 -----------------------------------------------------------------------------------------------------------------------
 local function pattern_string(height, value, c1, c2)
-	return string.format("linear:0,%s:0,0:0,%s:%s,%s:%s,%s:1,%s", height, c1, value, c1, value, c2, c2)
+	return string.format("linear:0,0:%s,0:0,%s:%s,%s:%s,%s:1,%s", height, c1, value, c1, value, c2, c2)
 end
 
 -- Create a new audio widget
